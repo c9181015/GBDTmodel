@@ -14,7 +14,7 @@ lang = st.sidebar.selectbox("Language / 语言", ["English", "中文"])
 
 text = {
     "English": {
-        "title": "Prediction Tool for Nosocomial Infections in ACLF",
+        "title": "Prediction Tool for Nosocomial Bacterial Infections in ACLF",
         "binary_title": "Binary Features (Yes/No)",
         "numeric_title": "Numerical Features",
         "predict_button": "Predict",
@@ -41,7 +41,7 @@ text = {
         }
     },
     "中文": {
-        "title": "ACLF院内感染风险预测工具",
+        "title": "ACLF院内细菌感染风险预测工具",
         "binary_title": "二分类特征（是/否）",
         "numeric_title": "数值型特征",
         "predict_button": "预测",
