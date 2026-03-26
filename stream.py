@@ -173,6 +173,7 @@ if st.session_state.predicted:
     # SHAP 可解释性
     # =========================
     if st.button(t["show_shap"]):
+        import matplotlib.transforms as mtransforms
         from matplotlib.patches import Rectangle
         from matplotlib.ticker import FormatStrFormatter
 
@@ -190,7 +191,7 @@ if st.session_state.predicted:
 
         base_value = float(base_value)
 
-        # 你想手动显示的 base value
+        # 你想手动显示的值
         manual_base_value = -0.647
 
         plt.figure(figsize=(12, 10))
@@ -204,41 +205,50 @@ if st.session_state.predicted:
         )
 
         ax = plt.gca()
-
-        # 横坐标显示三位小数
         ax.xaxis.set_major_formatter(FormatStrFormatter('%.3f'))
 
-        # 遮住 SHAP 原来顶部 base value 那一小块区域
-        # 如果你的页面尺寸变化后遮挡不完全，可微调这4个数字
+        # 先尝试隐藏 SHAP 自动生成的近似值文字
+        for txt in ax.texts:
+            txt_str = txt.get_text().strip()
+            if txt_str in [f"{base_value:.1f}", f"{base_value:.2f}", f"{base_value:.3f}"]:
+                txt.set_visible(False)
+
+        # 用“x按数据坐标，y按轴坐标”的混合坐标，确保文字正对灰色虚线
+        trans = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
+
+        # 在原 base value 上方盖一个白底小框，尽量遮住 SHAP 默认文字
+        cover_width = 0.9   # 这个值可微调；如果没盖住就改大一点，如 1.1
         cover_box = Rectangle(
-            (0.18, 0.90),   # 左下角（axes 坐标）
-            0.28,           # 宽度
-            0.10,           # 高度
-            transform=ax.transAxes,
+            (base_value - cover_width / 2, 0.935),
+            cover_width,
+            0.08,
+            transform=trans,
             facecolor='white',
             edgecolor='white',
-            zorder=1000
+            zorder=1000,
+            clip_on=False
         )
         ax.add_patch(cover_box)
 
-        # 手动画真实 base value 参考线
+        # 重新画竖线
         ax.axvline(base_value, color='gray', linestyle='--', linewidth=1.2, zorder=1001)
 
-        # 手动添加你要显示的 base value
+        # 手动把 base value 写在竖线正上方
         ax.text(
-            0.19, 0.965,
-            f"base value = {manual_base_value:.3f}",
-            transform=ax.transAxes,
+            base_value,
+            0.975,
+            f"{manual_base_value:.3f}",
+            transform=trans,
             color='black',
-            fontsize=12,
-            ha='left',
+            fontsize=13,
+            ha='center',
             va='top',
             fontweight='bold',
-            bbox=dict(facecolor='white', edgecolor='none', pad=0.2),
-            zorder=1002
+            bbox=dict(facecolor='white', edgecolor='gray', boxstyle='round,pad=0.2'),
+            zorder=1002,
+            clip_on=False
         )
 
-        # 调整字体
         for label in ax.get_yticklabels():
             label.set_fontsize(14)
         for label in ax.get_xticklabels():
@@ -255,7 +265,7 @@ if st.session_state.predicted:
 **SHAP 力图（SHAP Force Plot）** 用于解释单个样本的预测结果，展示每个特征对模型输出的影响。
 
 **1️⃣ 基线值（Base Value）**  
-- 图中手动标注的 *base value* 为 `-0.647`。  
+- 图中手动标注的基线值为 `-0.647`。  
 
 **2️⃣ 模型输出值（f(x)）**  
 - 图中显示的 *f(x)* 值是该样本的最终预测结果。  
@@ -268,34 +278,24 @@ if st.session_state.predicted:
 
 **4️⃣ 影响程度（箭头长度）**  
 - 箭头越长，说明该特征的 SHAP 值绝对值越大，对当前样本预测的影响越显著。  
-
-**📘 总结**  
-- 左侧（蓝色）特征使模型预测值减小；  
-- 右侧（红色）特征使预测值增大；  
-- 灰色虚线表示模型原始输出对应的位置。
 """)
         else:
             with st.expander("🧩 Click to view detailed SHAP Force Plot explanation"):
                 st.markdown("""
-**SHAP Force Plot** is used to interpret the prediction of an individual sample by showing how each feature contributes to the model output.
+**SHAP Force Plot** explains the prediction for an individual sample by showing how each feature contributes to the model output.
 
 **1️⃣ Base Value**  
-- The manually displayed *base value* is `-0.647`.  
+- The manually displayed base value is `-0.647`.  
 
 **2️⃣ Model Output (f(x))**  
-- The *f(x)* indicates the final predicted value for this sample.  
-- It equals the base value plus the sum of all SHAP values:  
+- The *f(x)* is the final predicted value for this sample.  
+- It equals the base value plus all SHAP values:  
   `f(x) = base value + Σ(SHAP_i)`  
 
-**3️⃣ Feature Contributions (Red and Blue Arrows)**  
-- 🔴 **Red arrows**: Features that push the prediction higher.  
-- 🔵 **Blue arrows**: Features that push the prediction lower.  
+**3️⃣ Feature Contributions**  
+- Red arrows push the prediction higher.  
+- Blue arrows push the prediction lower.  
 
 **4️⃣ Magnitude of Impact**  
-- Longer arrows indicate stronger feature influence on the prediction.  
-
-**📘 Summary**  
-- Features on the **left (blue)** decrease the output;  
-- Features on the **right (red)** increase the output;  
-- The gray dashed line marks the position of the model output reference.
+- Longer arrows indicate stronger feature influence on the prediction.
 """)
