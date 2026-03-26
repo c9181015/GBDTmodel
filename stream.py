@@ -14,7 +14,7 @@ lang = st.sidebar.selectbox("Language / 语言", ["English", "中文"])
 
 text = {
     "English": {
-        "title": "Prediction Tool for Nosocomial Bacterial Infections in ACLF",
+        "title": "Prediction Tool for Nosocomial Infections in ACLF",
         "binary_title": "Binary Features (Yes/No)",
         "numeric_title": "Numerical Features",
         "predict_button": "Predict",
@@ -41,7 +41,7 @@ text = {
         }
     },
     "中文": {
-        "title": "ACLF院内细菌感染风险预测工具",
+        "title": "ACLF院内感染风险预测工具",
         "binary_title": "二分类特征（是/否）",
         "numeric_title": "数值型特征",
         "predict_button": "预测",
@@ -173,9 +173,6 @@ if st.session_state.predicted:
     # SHAP 可解释性
     # =========================
     if st.button(t["show_shap"]):
-        import matplotlib.transforms as mtransforms
-        from matplotlib.ticker import FormatStrFormatter
-
         explainer = shap.TreeExplainer(model)
         shap_values = explainer.shap_values(input_df)
 
@@ -188,56 +185,7 @@ if st.session_state.predicted:
             if isinstance(base_value, (list, np.ndarray)):
                 base_value = np.atleast_1d(base_value)[-1]
 
-        base_value = float(base_value)
 
-        # 你希望手动显示的值
-        manual_base_value = -0.647
-
-        fig = plt.figure(figsize=(12, 10))
-        shap.force_plot(
-            base_value,
-            shap_values_for_sample,
-            input_df.iloc[0],
-            feature_names=feature_names,
-            matplotlib=True,
-            show=False
-        )
-
-        ax = plt.gca()
-
-        # 横坐标显示 3 位小数
-        ax.xaxis.set_major_formatter(FormatStrFormatter('%.3f'))
-
-        # 隐藏 SHAP 默认显示的近似 base value 文本（只隐藏文字，不盖图）
-        for txt in ax.texts:
-            txt_str = txt.get_text().strip()
-            if txt_str in [f"{base_value:.1f}", f"{base_value:.2f}", f"{base_value:.3f}"]:
-                txt.set_visible(False)
-
-        # 再画一条参考虚线
-        ax.axvline(base_value, color='gray', linestyle='--', linewidth=1.2, zorder=5)
-
-        # 用“数据坐标 x + 轴坐标 y”保证标签正好在虚线上方
-        trans = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
-
-        ax.annotate(
-            f"{manual_base_value:.3f}",
-            xy=(base_value, 0.98),
-            xycoords=trans,
-            xytext=(0, 0),
-            textcoords="offset points",
-            ha="center",
-            va="top",
-            fontsize=13,
-            fontweight="bold",
-            color="black",
-            bbox=dict(facecolor="white", edgecolor="gray", boxstyle="round,pad=0.2"),
-            zorder=10,
-            clip_on=False
-        )
-
-        # 给顶部留空间，别压到底部坐标轴
-        fig.subplots_adjust(top=0.90, bottom=0.12, left=0.08, right=0.98)
 
         for label in ax.get_yticklabels():
             label.set_fontsize(14)
@@ -246,7 +194,8 @@ if st.session_state.predicted:
         for txt in ax.texts:
             txt.set_fontsize(11)
 
-        st.pyplot(fig)
+        plt.tight_layout()
+        st.pyplot(plt.gcf())
 
         if lang == "中文":
             with st.expander("🧩 点击查看 SHAP 力图详细解释"):
@@ -254,7 +203,7 @@ if st.session_state.predicted:
 **SHAP 力图（SHAP Force Plot）** 用于解释单个样本的预测结果，展示每个特征对模型输出的影响。
 
 **1️⃣ 基线值（Base Value）**  
-- 图中手动标注的基线值为 `-0.647`。  
+- 图中标记的 *base value* 表示模型的平均输出。  
 
 **2️⃣ 模型输出值（f(x)）**  
 - 图中显示的 *f(x)* 值是该样本的最终预测结果。  
@@ -267,24 +216,34 @@ if st.session_state.predicted:
 
 **4️⃣ 影响程度（箭头长度）**  
 - 箭头越长，说明该特征的 SHAP 值绝对值越大，对当前样本预测的影响越显著。  
+
+**📘 总结**  
+- 左侧（蓝色）特征使模型预测值减小；  
+- 右侧（红色）特征使预测值增大；  
+- 中间的灰色虚线表示模型的平均预测水平。
 """)
         else:
             with st.expander("🧩 Click to view detailed SHAP Force Plot explanation"):
                 st.markdown("""
-**SHAP Force Plot** explains the prediction for an individual sample by showing how each feature contributes to the model output.
+**SHAP Force Plot** is used to interpret the prediction of an individual sample by showing how each feature contributes to the model output.
 
 **1️⃣ Base Value**  
-- The manually displayed base value is `-0.647`.  
+- The *base value* represents the model’s average output.  
 
 **2️⃣ Model Output (f(x))**  
-- The *f(x)* is the final predicted value for this sample.  
-- It equals the base value plus all SHAP values:  
+- The *f(x)* indicates the final predicted value for this sample.  
+- It equals the base value plus the sum of all SHAP values:  
   `f(x) = base value + Σ(SHAP_i)`  
 
-**3️⃣ Feature Contributions**  
-- Red arrows push the prediction higher.  
-- Blue arrows push the prediction lower.  
+**3️⃣ Feature Contributions (Red and Blue Arrows)**  
+- 🔴 **Red arrows**: Features that push the prediction higher (positive contribution).  
+- 🔵 **Blue arrows**: Features that push the prediction lower (negative contribution).  
 
-**4️⃣ Magnitude of Impact**  
-- Longer arrows indicate stronger feature influence on the prediction.
+**4️⃣ Magnitude of Impact (Arrow Length)**  
+- Longer arrows indicate features with larger absolute SHAP values, meaning stronger influence on the prediction.  
+
+**📘 Summary**  
+- Features on the **left (blue)** decrease the predicted value;  
+- Features on the **right (red)** increase it;  
+- The **gray dashed line** represents the model’s average output.
 """)
