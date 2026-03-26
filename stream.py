@@ -209,8 +209,8 @@ if st.session_state.predicted:
         ax.axvline(base_value, color='gray', linestyle='--', linewidth=1)
         ax.text(
             base_value,
-            ymax * 1.02,
-            f"base value = {base_value:.3f}",
+            ymax * 1.08,
+            "base value = -0.647",
             color='gray',
             fontsize=12,
             ha='center',
