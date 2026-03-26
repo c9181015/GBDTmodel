@@ -174,108 +174,87 @@ if st.session_state.predicted:
     # =========================
     if st.button(t["show_shap"]):
         explainer = shap.TreeExplainer(model)
-        shap_values = explainer.shap_values(input_df)
+        shap_explanation = explainer(input_df)
 
-        if isinstance(shap_values, list):
-            shap_values_for_sample = shap_values[1][0]
-            base_value = explainer.expected_value[1]
-        else:
-            shap_values_for_sample = shap_values[0]
-            base_value = explainer.expected_value
-            if isinstance(base_value, (list, np.ndarray)):
-                base_value = np.atleast_1d(base_value)[-1]
+        # 取当前样本
+        single_exp = shap_explanation[0]
 
-        base_value = float(base_value)
+        # 手动固定 base value
+        manual_base_value = -0.647
 
-        plt.figure(figsize=(12, 10))
-        shap.force_plot(
-            base_value,
-            shap_values_for_sample,
-            input_df.iloc[0],
-            feature_names=feature_names,
-            matplotlib=True,
-            show=False
-        )
+        # 用手动 base value 替换 explanation 中的 base_values
+        single_exp.base_values = manual_base_value
+
+        plt.figure(figsize=(10, 6))
+        shap.plots.waterfall(single_exp, max_display=12, show=False)
 
         ax = plt.gca()
 
-        # 隐藏 SHAP 自动生成的顶部 base value 简化显示
-        for txt in ax.texts:
-            if txt.get_text().strip() in [f"{base_value:.1f}", f"{base_value:.2f}"]:
-                txt.set_visible(False)
-
-        # 再手动添加精确 base value
-        ymin, ymax = ax.get_ylim()
-        ax.axvline(base_value, color='gray', linestyle='--', linewidth=1)
-        ax.text(
-            base_value,
-            ymax * 1.02,
-            f"base value = {base_value:.3f}",
-            color='gray',
-            fontsize=12,
-            ha='center',
-            va='bottom',
-            fontweight='bold',
-            bbox=dict(facecolor='white', edgecolor='none', alpha=0.8)
-        )
-
+        # 调整字体
+        ax.set_title("SHAP Waterfall Plot", fontsize=14)
         for label in ax.get_yticklabels():
-            label.set_fontsize(14)
+            label.set_fontsize(12)
         for label in ax.get_xticklabels():
-            label.set_fontsize(14)
-        for txt in ax.texts:
-            txt.set_fontsize(11)
+            label.set_fontsize(11)
+
+        # 手动添加 base value 说明
+        ax.text(
+            0.02, 1.02,
+            f"Base value = {manual_base_value:.3f}",
+            transform=ax.transAxes,
+            fontsize=12,
+            fontweight='bold',
+            ha='left',
+            va='bottom',
+            bbox=dict(facecolor='white', edgecolor='gray', boxstyle='round,pad=0.25')
+        )
 
         plt.tight_layout()
         st.pyplot(plt.gcf())
 
         if lang == "中文":
-            with st.expander("🧩 点击查看 SHAP 力图详细解释"):
+            with st.expander("🧩 点击查看 SHAP 瀑布图详细解释"):
                 st.markdown("""
-**SHAP 力图（SHAP Force Plot）** 用于解释单个样本的预测结果，展示每个特征对模型输出的影响。
+**SHAP 瀑布图（SHAP Waterfall Plot）** 用于解释单个样本的预测结果，展示各特征如何从基线值逐步推动模型输出变化。
 
 **1️⃣ 基线值（Base Value）**  
-- 图中标记的 *base value* 表示模型的平均输出。  
+- 这里固定显示为 `-0.647`。  
+- 它表示模型在总体样本中的基准输出水平。  
 
-**2️⃣ 模型输出值（f(x)）**  
-- 图中显示的 *f(x)* 值是该样本的最终预测结果。  
-- 它等于基线值加上所有特征的 SHAP 值：  
-  `f(x) = base value + Σ(SHAP_i)`  
+**2️⃣ 最终预测值（f(x)）**  
+- 瀑布图最右侧显示的是该样本的最终模型输出。  
+- 它等于基线值加上所有特征的 SHAP 值贡献。  
 
-**3️⃣ 特征贡献（红色和蓝色箭头）**  
-- 🔴 **红色箭头**：对预测结果有正向贡献（推高预测值）。  
-- 🔵 **蓝色箭头**：对预测结果有负向贡献（降低预测值）。  
+**3️⃣ 特征贡献方向**  
+- 正向贡献：将预测值往更高方向推动。  
+- 负向贡献：将预测值往更低方向推动。  
 
-**4️⃣ 影响程度（箭头长度）**  
-- 箭头越长，说明该特征的 SHAP 值绝对值越大，对当前样本预测的影响越显著。  
+**4️⃣ 特征贡献大小**  
+- 条形越长，表示该特征对当前样本预测结果影响越大。  
 
 **📘 总结**  
-- 左侧（蓝色）特征使模型预测值减小；  
-- 右侧（红色）特征使预测值增大；  
-- 中间的灰色虚线表示模型的平均预测水平。
+- 瀑布图比力图更稳定，也更适合精确展示单一样本的特征贡献。  
 """)
         else:
-            with st.expander("🧩 Click to view detailed SHAP Force Plot explanation"):
+            with st.expander("🧩 Click to view detailed SHAP Waterfall Plot explanation"):
                 st.markdown("""
-**SHAP Force Plot** is used to interpret the prediction of an individual sample by showing how each feature contributes to the model output.
+**SHAP Waterfall Plot** explains the prediction for a single sample by showing how each feature moves the model output step by step from the base value.
 
 **1️⃣ Base Value**  
-- The *base value* represents the model’s average output.  
+- The base value is fixed here as `-0.647`.  
+- It represents the baseline output level of the model.  
 
-**2️⃣ Model Output (f(x))**  
-- The *f(x)* indicates the final predicted value for this sample.  
-- It equals the base value plus the sum of all SHAP values:  
-  `f(x) = base value + Σ(SHAP_i)`  
+**2️⃣ Final Output (f(x))**  
+- The right side of the waterfall plot shows the final model output for the sample.  
+- It equals the base value plus all SHAP contributions.  
 
-**3️⃣ Feature Contributions (Red and Blue Arrows)**  
-- 🔴 **Red arrows**: Features that push the prediction higher (positive contribution).  
-- 🔵 **Blue arrows**: Features that push the prediction lower (negative contribution).  
+**3️⃣ Direction of Contribution**  
+- Positive contributions push the prediction higher.  
+- Negative contributions push the prediction lower.  
 
-**4️⃣ Magnitude of Impact (Arrow Length)**  
-- Longer arrows indicate features with larger absolute SHAP values, meaning stronger influence on the prediction.  
+**4️⃣ Magnitude of Contribution**  
+- Longer bars indicate a stronger influence of that feature on the prediction.  
 
 **📘 Summary**  
-- Features on the **left (blue)** decrease the predicted value;  
-- Features on the **right (red)** increase it;  
-- The **gray dashed line** represents the model’s average output.
+- The waterfall plot is more stable than the force plot and is better suited for precise display of feature contributions for an individual sample.  
 """)
