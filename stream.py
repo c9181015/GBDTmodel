@@ -14,7 +14,7 @@ lang = st.sidebar.selectbox("Language / 语言", ["English", "中文"])
 
 text = {
     "English": {
-        "title": "Prediction Tool for  Hospital-Acquired Bacterial Infection Infections in ACLF",
+        "title": "Prediction Tool for  Hospital-Acquired Bacterial Infections in ACLF",
         "binary_title": "Binary Features (Yes/No)",
         "numeric_title": "Numerical Features",
         "predict_button": "Predict",
