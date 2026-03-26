@@ -185,28 +185,47 @@ if st.session_state.predicted:
             if isinstance(base_value, (list, np.ndarray)):
                 base_value = np.atleast_1d(base_value)[-1]
 
-        plt.figure(figsize=(12, 10))
-        shap.force_plot(
-            base_value,
-            shap_values_for_sample,
-            input_df.iloc[0],
-            feature_names=feature_names,
-            matplotlib=True,
-            show=False
-        )
+plt.figure(figsize=(12, 10))
+shap.force_plot(
+    base_value,
+    shap_values_for_sample,
+    input_df.iloc[0],
+    feature_names=feature_names,
+    matplotlib=True,
+    show=False
+)
 
-        ax = plt.gca()
-        ax.axvline(base_value, color='gray', linestyle='--', linewidth=1)
-        ax.text(
-            base_value,
-            ax.get_ylim()[1] * 1.05,
-            f'{base_value:.3f}',
-            color='gray',
-            fontsize=12,
-            ha='center',
-            va='bottom',
-            fontweight='bold'
-        )
+ax = plt.gca()
+
+# 隐藏 SHAP 自动生成的顶部 base value / f(x) 文字里与 base value 重叠的部分
+for txt in ax.texts:
+    if txt.get_text().strip() in [f"{base_value:.1f}", f"{base_value:.2f}"]:
+        txt.set_visible(False)
+
+# 再手动添加精确 base value
+ymin, ymax = ax.get_ylim()
+ax.axvline(base_value, color='gray', linestyle='--', linewidth=1)
+ax.text(
+    base_value,
+    ymax * 1.02,
+    f"base value = {base_value:.3f}",
+    color='gray',
+    fontsize=12,
+    ha='center',
+    va='bottom',
+    fontweight='bold',
+    bbox=dict(facecolor='white', edgecolor='none', alpha=0.8)
+)
+
+for label in ax.get_yticklabels():
+    label.set_fontsize(14)
+for label in ax.get_xticklabels():
+    label.set_fontsize(14)
+for txt in ax.texts:
+    txt.set_fontsize(11)
+
+plt.tight_layout()
+st.pyplot(plt.gcf())
 
         for label in ax.get_yticklabels():
             label.set_fontsize(14)
