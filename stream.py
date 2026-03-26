@@ -174,7 +174,6 @@ if st.session_state.predicted:
     # =========================
     if st.button(t["show_shap"]):
         import matplotlib.transforms as mtransforms
-        from matplotlib.patches import Rectangle
         from matplotlib.ticker import FormatStrFormatter
 
         explainer = shap.TreeExplainer(model)
@@ -191,10 +190,10 @@ if st.session_state.predicted:
 
         base_value = float(base_value)
 
-        # 你想手动显示的值
+        # 你希望手动显示的值
         manual_base_value = -0.647
 
-        plt.figure(figsize=(12, 10))
+        fig = plt.figure(figsize=(12, 10))
         shap.force_plot(
             base_value,
             shap_values_for_sample,
@@ -205,49 +204,40 @@ if st.session_state.predicted:
         )
 
         ax = plt.gca()
+
+        # 横坐标显示 3 位小数
         ax.xaxis.set_major_formatter(FormatStrFormatter('%.3f'))
 
-        # 先尝试隐藏 SHAP 自动生成的近似值文字
+        # 隐藏 SHAP 默认显示的近似 base value 文本（只隐藏文字，不盖图）
         for txt in ax.texts:
             txt_str = txt.get_text().strip()
             if txt_str in [f"{base_value:.1f}", f"{base_value:.2f}", f"{base_value:.3f}"]:
                 txt.set_visible(False)
 
-        # 用“x按数据坐标，y按轴坐标”的混合坐标，确保文字正对灰色虚线
+        # 再画一条参考虚线
+        ax.axvline(base_value, color='gray', linestyle='--', linewidth=1.2, zorder=5)
+
+        # 用“数据坐标 x + 轴坐标 y”保证标签正好在虚线上方
         trans = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
 
-        # 在原 base value 上方盖一个白底小框，尽量遮住 SHAP 默认文字
-        cover_width = 0.9   # 这个值可微调；如果没盖住就改大一点，如 1.1
-        cover_box = Rectangle(
-            (base_value - cover_width / 2, 0.935),
-            cover_width,
-            0.08,
-            transform=trans,
-            facecolor='white',
-            edgecolor='white',
-            zorder=1000,
-            clip_on=False
-        )
-        ax.add_patch(cover_box)
-
-        # 重新画竖线
-        ax.axvline(base_value, color='gray', linestyle='--', linewidth=1.2, zorder=1001)
-
-        # 手动把 base value 写在竖线正上方
-        ax.text(
-            base_value,
-            0.975,
+        ax.annotate(
             f"{manual_base_value:.3f}",
-            transform=trans,
-            color='black',
+            xy=(base_value, 0.98),
+            xycoords=trans,
+            xytext=(0, 0),
+            textcoords="offset points",
+            ha="center",
+            va="top",
             fontsize=13,
-            ha='center',
-            va='top',
-            fontweight='bold',
-            bbox=dict(facecolor='white', edgecolor='gray', boxstyle='round,pad=0.2'),
-            zorder=1002,
+            fontweight="bold",
+            color="black",
+            bbox=dict(facecolor="white", edgecolor="gray", boxstyle="round,pad=0.2"),
+            zorder=10,
             clip_on=False
         )
+
+        # 给顶部留空间，别压到底部坐标轴
+        fig.subplots_adjust(top=0.90, bottom=0.12, left=0.08, right=0.98)
 
         for label in ax.get_yticklabels():
             label.set_fontsize(14)
@@ -256,8 +246,7 @@ if st.session_state.predicted:
         for txt in ax.texts:
             txt.set_fontsize(11)
 
-        plt.tight_layout()
-        st.pyplot(plt.gcf())
+        st.pyplot(fig)
 
         if lang == "中文":
             with st.expander("🧩 点击查看 SHAP 力图详细解释"):
